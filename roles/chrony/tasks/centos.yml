@@ -1,0 +1,29 @@
+- name: 重新启动 crond 避免因修改时区而导致的作业错乱问题
+  service:
+    name: crond
+    state: restarted
+    enabled: yes
+
+- name: 安装 chrony
+  yum:
+    name: 
+    - chrony
+    state: latest
+
+- name: 配置 chrony server 
+  template: 
+    src: server.conf.j2 
+    dest: /etc/chrony.conf
+  when: inventory_hostname == groups['all'][0]
+
+- name: 配置 chrony client
+  template: 
+    src: client.conf.j2
+    dest: /etc/chrony.conf
+  when: inventory_hostname != groups['all'][0]
+
+- name: 启动 chrony 
+  service: 
+    name: chronyd
+    state: restarted 
+    enabled: yes

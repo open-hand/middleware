@@ -1,0 +1,6 @@
+# 提权操作
+ansible_become: true
+command_warnings: false
+
+timezone: Asia/Shanghai
+ntp_servers: ntp.aliyun.com

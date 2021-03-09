@@ -1,0 +1,8 @@
+cmdallow 127/8
+pool {% if hostvars[inventory_hostname]['ansible_host'] is defined %}{{ hostvars[groups['all'][0]]['ansible_host'] }}{% else %}{{ groups['all'][0] }}{% endif %} iburst
+initstepslew 10 {% if hostvars[inventory_hostname]['ansible_host'] is defined %}{{ hostvars[groups['all'][0]]['ansible_host'] }}{% else %}{{ groups['all'][0] }}{% endif %} 
+driftfile /var/lib/chrony/chrony.drift
+local stratum 10
+makestep 1.0 3
+rtcsync
+allow 0.0.0.0/0
