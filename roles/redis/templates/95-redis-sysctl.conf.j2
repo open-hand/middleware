@@ -1,0 +1,11 @@
+# 最大限度使用物理内存
+vm.swappiness = 0
+
+# 定义了系统中每一个端口最大的监听队列的长度,这是个全局的参数,默认值为128
+net.core.somaxconn = 32768
+
+# refer to https://github.com/Azure/aks-engine/blob/d6f4929a659241ea33d8fd4d9fc86d0e27b0cb07/parts/k8s/cloud-init/artifacts/sysctl-d-60-CIS.conf
+# refer to https://github.com/kubernetes/kubernetes/blob/75d45bdfc9eeda15fb550e00da662c12d7d37985/pkg/kubelet/cm/container_manager_linux.go#L359-L397
+vm.overcommit_memory = 1
+kernel.panic = 10
+kernel.panic_on_oops = 1

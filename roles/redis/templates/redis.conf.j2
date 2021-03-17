@@ -1,0 +1,10 @@
+{% if redis_base_config|length > 0 %}
+{% for key in redis_base_config %}
+{{ key }} {{ redis_base_config[key] }}
+{% endfor %}
+{% endif %}
+
+{% if inventory_hostname != groups['redis'][0] %}
+slaveof {% if hostvars[inventory_hostname]['ansible_host'] is defined %}{{ hostvars[groups['redis'][0]]['ansible_host'] }}{% else %}{{ groups['redis'][0] }}{% endif %} {{ redis_base_config.port }}
+{% endif %}
+daemonize no

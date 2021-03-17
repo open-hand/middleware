@@ -1,0 +1,44 @@
+- name: 下载 redis 源码包
+  get_url:
+    url: "{{ redis_download_url }}"
+    dest: "{{ redis_tarball_path }}"
+
+- name: 解压 redis 源码包
+  shell: "tar zxf {{ redis_tarball_path }} -C /tmp"
+
+- name: 编译 redis 源码
+  shell: >
+    make distclean -C {{ redis_code_path }};
+    make -C {{ redis_code_path }}
+
+- name: 创建 redis group
+  group: 
+    name: redis
+    state: present
+    system: yes
+
+- name: 创建 redis user
+  user: 
+    name: redis
+    group: redis
+    createhome: no
+    shell: /bin/false
+    system: yes
+    state: present
+
+- name: 安装 redis 二级制文件
+  shell: "cp {{ redis_code_path }}/src/{{ item }} /usr/bin"
+  with_items: 
+  - redis-benchmark
+  - redis-check-aof
+  - redis-check-rdb
+  - redis-cli
+  - redis-sentinel
+  - redis-server
+  - redis-trib.rb
+
+- name: 清理不需要的文件
+  shell: "rm -rf {{ item }}"
+  with_items:
+  - "{{ redis_code_path }}"
+  - "{{ redis_tarball_path }}"

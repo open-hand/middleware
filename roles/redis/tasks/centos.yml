@@ -1,0 +1,18 @@
+- name: 安装依赖
+  yum:
+    name: 
+    - gcc
+    - make
+    state: latest
+
+- include_tasks: common.yml
+
+- name: 生成 redis-server service 配置
+  template:
+    src: redis.service.j2
+    dest: /usr/lib/systemd/system/redis.service
+
+- name: 生成 redis-sentinel service 配置
+  template:
+    src: redis-sentinel.service.j2
+    dest: /usr/lib/systemd/system/redis-sentinel.service

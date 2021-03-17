@@ -1,0 +1,115 @@
+- name: 调整内核参数
+  shell: |
+    sysctl -w net.core.somaxconn=32768;
+    if test -f /sys/kernel/mm/redhat_transparent_hugepage/enabled; then
+      echo never > /sys/kernel/mm/redhat_transparent_hugepage/enabled
+    fi
+  ignore_errors: true
+
+- name: 设置系统参数
+  template: 
+    src: 95-redis-sysctl.conf.j2
+    dest: /etc/sysctl.d/95-redis-sysctl.conf
+
+- name: 生效系统参数
+  shell: "sysctl -p /etc/sysctl.d/95-redis-sysctl.conf"
+  ignore_errors: true
+
+- name: 读取 redis-server 信息
+  stat: 
+    path: /usr/bin/redis-server
+  register: redis_server_stat
+
+- block:
+  - include_tasks: debian.yml
+    when: ansible_distribution in [ 'Ubuntu','Debian' ]
+  
+  - include_tasks: centos.yml
+    when: ansible_distribution in [ 'CentOS','OracleLinux','RedHat' ]
+  when: not redis_server_stat.stat.exists
+
+- name: 生成 redis shutdown 脚本
+  copy:
+    src: redis-shutdown.sh
+    dest: /usr/bin/redis-shutdown
+    owner: redis
+    group: redis
+    mode: 0755
+
+- name: 创建 redis 相关目录
+  file: 
+    name: "{{ item }}"
+    state: directory
+    mode: 0755
+    group: redis
+    owner: redis
+  with_items:
+  - /etc/redis
+  - /run/redis
+  - /var/log/redis
+  - "{{ redis_base_config.dir }}"
+  - "{{ redis_base_config.logfile|dirname }}"
+  - "{{ redis_sentinel_config.logfile|dirname }}"
+
+- name: 创建 redis 日志文件
+  file: 
+    name: "{{ item }}"
+    state: touch
+    mode: 0644
+    group: redis
+    owner: redis
+  with_items:
+  - "{{ redis_base_config.logfile }}"
+  - "{{ redis_sentinel_config.logfile }}"
+
+- name: 重新加载 daemon
+  systemd:
+    daemon_reload: yes
+
+- name: 生成 redis 配置
+  template:
+    src: redis.conf.j2
+    dest: /etc/redis/redis.conf
+    mode: 0644
+    group: redis
+    owner: redis
+  register: redis_server_result
+
+- name: 停止 redis
+  service:
+    name: redis
+    state: stopped
+    enabled: yes
+  when: redis_server_result.changed
+
+- name: 启动 redis
+  service:
+    name: redis
+    state: started
+    enabled: yes
+  when: redis_server_result.changed
+
+- block:
+  - name: 生成 redis-sentinel 配置
+    template:
+      src: redis-sentinel.conf.j2
+      dest: /etc/redis/redis-sentinel.conf
+      mode: 0644
+      group: redis
+      owner: redis
+    register: redis_sentinel_result
+  
+  - name: 停止 redis-sentinel
+    service:
+      name: redis-sentinel
+      state: stopped
+      enabled: yes
+    when: redis_sentinel_result.changed
+
+  - name: 启动 redis-sentinel
+    service:
+      name: redis-sentinel
+      state: started
+      enabled: yes
+    when: redis_sentinel_result.changed
+  when: "groups['redis']|length > 1"

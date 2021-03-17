@@ -1,0 +1,14 @@
+- hosts: 
+  - redis
+  tasks:
+  - name: 停止 redis
+    service:
+      name: redis
+      state: stopped
+      enabled: yes
+  - name: 停止 redis-sentinel
+    service:
+      name: redis-sentinel
+      state: stopped
+      enabled: yes
+    when: "groups['redis']|length > 1"

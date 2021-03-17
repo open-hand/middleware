@@ -14,13 +14,13 @@
   template: 
     src: server.conf.j2 
     dest: /etc/chrony.conf
-  when: inventory_hostname == groups['all'][0]
+  when: inventory_hostname == groups['chrony'][0]
 
 - name: 配置 chrony client
   template: 
     src: client.conf.j2
     dest: /etc/chrony.conf
-  when: inventory_hostname != groups['all'][0]
+  when: inventory_hostname != groups['chrony'][0]
 
 - name: 启动 chrony 
   service: 
