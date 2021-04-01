@@ -1,0 +1,146 @@
+- block:
+  - name: 判断 firewalld 是否安装
+    shell: >
+      systemctl status firewalld | grep active || echo "not be found"
+    register: firewalld_already_installed
+  
+  - name: 禁用防火墙
+    service:
+      name: firewalld
+      state: stopped
+      enabled: no
+    when: '"active" in firewalld_already_installed.stdout'
+  when: "(firewalld_disabled | bool) | default(true)"
+
+- name: 临时关闭 selinux
+  shell: "setenforce 0"
+  failed_when: false
+
+- name: 永久关闭 selinux
+  lineinfile:
+    dest: /etc/selinux/config
+    regexp: "^SELINUX="
+    line: "SELINUX=disabled"
+
+- name: 添加 mysql-connectors-community 仓库
+  yum_repository:
+    name: mysql-connectors-community
+    file: mysql-community
+    description: MySQL Connectors Community
+    baseurl: "{{ mysql_connectors_community_yum_repo }}"
+    enabled: yes
+    gpgcheck: no
+    state: present
+
+- name: 添加 mysql-tools-community 仓库
+  yum_repository:
+    name: mysql-tools-community
+    file: mysql-community
+    description: MySQL Tools Community
+    baseurl: "{{ mysql_tools_community_yum_repo }}"
+    enabled: yes
+    gpgcheck: no
+    state: present
+
+- name: 添加 mysql-5.7-community 仓库
+  yum_repository:
+    name: mysql-5.7-community
+    file: mysql-community
+    description: MySQL 5.7 Community Server
+    baseurl: "{{ mysql_community_yum_repo }}"
+    enabled: yes
+    gpgcheck: no
+    state: present
+
+- name: 读取 MySQL 配置信息
+  stat: 
+    path: /etc/my.cnf.d/mysqld.cnf
+  register: mysql_cnf_stat
+
+- name: 移除 mariadb 相关软件包
+  yum:
+    state: absent
+    name: 
+    - postfix
+    - mariadb
+    - mariadb-libs
+  when: not mysql_cnf_stat.stat.exists
+
+- name: 安装 MySQL 软件包
+  yum: 
+    state: latest
+    name: 
+    - rsync
+    - mysql-community-libs
+    - mysql-community-common
+    - mysql-community-client   
+    - mysql-community-server
+    - mysql-community-libs-compat
+  when: not mysql_cnf_stat.stat.exists
+
+- name: 安装 keepalived
+  yum: 
+    state: latest
+    name: 
+    - keepalived
+  when: 
+  - "groups['mysql']|length > 1"
+  - not mysql_cnf_stat.stat.exists
+
+- name: 设置 my.cnf 文件
+  lineinfile:
+    dest: /etc/my.cnf
+    regexp: "^!includedir"
+    line: "!includedir /etc/my.cnf.d/"
+
+- name: 生成 MySQL 配置
+  template:
+    src: mysqld.cnf.j2
+    dest: /etc/my.cnf.d/mysqld.cnf
+    mode: 0644
+  register: mysql_cnf_result
+
+- name: 创建 MySQL 相关目录
+  file: 
+    name: "{{ item }}"
+    state: directory
+    mode: 0755
+  with_items:
+  - "{{ mysqld.datadir }}"
+
+- name: 停止 MySQL
+  service:
+    name: mysqld
+    state: stopped
+    enabled: yes
+  when: mysql_cnf_result.changed
+
+- name: 启动 MySQL
+  service:
+    name: mysqld
+    state: started
+    enabled: yes
+  when: mysql_cnf_result.changed
+
+- name: 等待 MySQL 启动
+  wait_for:
+    port: "{{ mysqld.port }}"
+    delay: 5
+  when: mysql_cnf_result.changed
+
+- block:
+  - name: 获取 MySQL 初始随机密码
+    shell: >
+      cat {{ mysqld.datadir }}/mysqld.log |
+      grep 'A temporary password is generated for' |
+      tail -1 | sed -n 's/.*root@localhost: //p'
+    register: mysql_temporary_password
+  
+  - name: 修改 root 用户密码
+    shell: >
+      mysql -uroot -p'{{ mysql_temporary_password.stdout }}' --connect-expired-password -NBe 
+      "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ auth.rootPassword }}';
+      GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '{{ auth.rootPassword }}' WITH GRANT OPTION;
+      GRANT REPLICATION SLAVE ON *.* TO '{{ auth.replicationUser }}'@'%' IDENTIFIED BY '{{ auth.replicationPassword }}';
+      FLUSH PRIVILEGES;"
+  when: not mysql_cnf_stat.stat.exists

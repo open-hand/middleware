@@ -1,0 +1,95 @@
+- block:
+  - name: 判断 ufw 是否安装
+    shell: >
+      systemctl status ufw | grep active || echo "not be found"
+    register: ufw_already_installed
+  
+  - name: 禁用防火墙
+    service:
+      name: ufw
+      state: stopped
+      enabled: no
+    when: '"active" in ufw_already_installed.stdout'
+  when: "(firewalld_disabled | bool) | default(true)"
+
+- name: 生成 MySQL GPG 公钥
+  copy:
+    src: mysql.gpg
+    dest: /tmp/mysql.gpg
+    owner: root
+    mode: 0644
+
+- name: 添加 MySQL GPG 公钥
+  shell: apt-key add /tmp/mysql.gpg
+
+- name: 添加 mysql-5.7-community 仓库
+  apt_repository:
+    repo: "{{ mysql_community_apt_repo }}"
+    state: present
+
+- name: 读取 MySQL 配置信息
+  stat: 
+    path: /etc/mysql/mysql.conf.d/mysqld.cnf
+  register: mysql_cnf_stat
+
+- name: 安装 MySQL
+  apt:
+    name:
+    - "mysql-server"
+    state: present
+    allow_unauthenticated: true
+  when: not mysql_cnf_stat.stat.exists
+
+- name: 安装 keepalived
+  apt:
+    name:
+    - "keepalived"
+    state: present
+    allow_unauthenticated: true
+  when: 
+  - "groups['mysql']|length > 1"
+  - not mysql_cnf_stat.stat.exists
+
+- name: 生成 MySQL 配置
+  template:
+    src: mysqld.cnf.j2
+    dest: /etc/mysql/mysql.conf.d/mysqld.cnf
+    mode: 0644
+  register: mysql_cnf_result
+
+- name: 创建 MySQL 相关目录
+  file: 
+    name: "{{ item }}"
+    state: directory
+    mode: 0755
+  with_items:
+  - "{{ mysqld.datadir }}"
+
+- name: 停止 MySQL
+  service:
+    name: mysql
+    state: stopped
+    enabled: yes
+  when: mysql_cnf_result.changed
+
+- name: 启动 MySQL
+  service:
+    name: mysql
+    state: started
+    enabled: yes
+  when: mysql_cnf_result.changed
+
+- name: 等待 MySQL 启动
+  wait_for:
+    port: "{{ mysqld.port }}"
+    delay: 5
+  when: mysql_cnf_result.changed
+
+- name: 修改 root 用户密码
+  shell: >
+    mysql -uroot -NBe 
+    "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ auth.rootPassword }}';
+    GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '{{ auth.rootPassword }}' WITH GRANT OPTION;
+    GRANT REPLICATION SLAVE ON *.* TO '{{ auth.replicationUser }}'@'%' IDENTIFIED BY '{{ auth.replicationPassword }}';
+    FLUSH PRIVILEGES;"
+  when: not mysql_cnf_stat.stat.exists

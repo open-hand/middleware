@@ -1,0 +1,35 @@
+# For advice on how to change settings please see
+# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html
+
+[client]
+socket={{ mysqld.datadir }}/mysql.sock
+
+[mysqld]
+socket={{ mysqld.datadir }}/mysql.sock
+log-error={{ mysqld.datadir }}/mysqld.log
+{% if mysqld|length > 0 %}
+{% for key in mysqld %}
+{{ key }}={{ mysqld[key] }}
+{% endfor %}
+{% endif %}
+
+{% if groups['mysql']|length > 1 %}
+server-id                      = {{ groups['mysql'].index(inventory_hostname)|int + 1 }} #[必须]服务器唯一ID，每台服务器需不同
+log-bin                        = bin.log                              #[必须]启用二进制文件
+binlog_format                  = mixed                                #[不是必须]二进制文件启用混合模式，mysql默认采用statement，建议使用mixed
+expire-logs-days               = 14                                   #[不是必须]二进制文件过期时间，单位是天
+sync-binlog                    = 1                                    #[不是必须]当每进行1次事务提交之后，MySQL将进行一次磁盘同步指令来将binlog_cache中的数据强制写入磁盘
+
+# MASTER DB #
+binlog-ignore-db               = mysql                                #[必须]不需要记录二进制日志的数据库。如果有多个数据库可用逗号分隔，或者使用多个binlog-do-db选项。一般为了保证主主同步不冲突，会忽略mysql数据库。
+auto-increment-increment       = {{ groups['mysql']|length }}         #[必须]
+auto-increment-offset          = 1                                    #[必须]
+#做主主备份的时候，因为每台数据库服务器都可能在同一个表中插入数据，如果表有一个自动增长的主键，那么就会在多服务器上出现主键冲突。
+#解决这个问题的办法就是让每个数据库的自增主键不连续。上面两项说的是，假设需要将来可能需要10台服务器做备份，将auto-increment-increment设为10。而auto-increment-offset=1表示这台服务器的序号。从1开始，不超过auto-increment-increment。
+
+# SLAVE DB #
+replicate-ignore-db            = mysql                                 #[必须]不需要同步的数据库。如果有多个数据库可用逗号分隔，或者使用多个replicate-ignore-db选项。一般为了保证主主同步不冲突，会不同步mysql数据库。
+relay_log                      = relay.log                             #[不是必须]开启中继日志，复制线程先把远程的变化复制到中继日志中，再执行。
+log-slave-updates              = ON                                    #[必须]中继日志执行之后将变化写入自己的二进制文件
+slave-skip-errors              = all                                   #[不是必须]跳过所有的sql语句失败
+{% endif %}

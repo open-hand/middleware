@@ -1,0 +1,43 @@
+global_defs {
+    router_id mysql-{{ groups['mysql'].index(inventory_hostname)|int + 1 }}
+    script_user root
+}
+
+vrrp_script check-mysql {
+    script "mysqladmin status -uroot -p'{{ auth.rootPassword }}'"
+    interval 5
+    weight -20
+}
+
+vrrp_instance VI_1 {
+    interface {{ lb_keepalived_interface.stdout }}
+
+    state {{ LB_KEEPALIVED_STATE }}
+    virtual_router_id {{ lb_keepalived_router_id }}
+    priority {{ LB_KEEPALIVED_PRIORITY }}
+
+    unicast_peer {
+{% for host in groups['mysql'] %}{% if host != inventory_hostname %}
+{% if hostvars[host]['ansible_host'] is defined %}
+        {{ hostvars[host]['ansible_host'] }}
+{% else %}
+        {{ host }}
+{% endif %}
+{% endif %}{% endfor %}
+    }
+
+    authentication {
+        auth_type PASS
+        auth_pass {{ lb_keepalived_password }}
+    }
+
+    advert_int 3
+
+    track_script {
+        check-mysql
+    }
+
+    virtual_ipaddress {
+        {{ lb_keepalived_virtual_ipaddress }}
+    }
+}

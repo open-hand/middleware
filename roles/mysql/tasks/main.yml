@@ -1,0 +1,83 @@
+- name: 设置 systemd-modules-load 配置
+  template: 
+    src: 10-mysql-modules.conf.j2
+    dest: /etc/modules-load.d/10-mysql-modules.conf
+
+- name: 启动/重启 systemd-modules-load
+  service:
+    name: systemd-modules-load
+    state: restarted
+    enabled: yes
+
+- name: 设置系统参数
+  template: 
+    src: 95-mysql-sysctl.conf.j2
+    dest: /etc/sysctl.d/95-mysql-sysctl.conf
+
+- name: 生效系统参数
+  shell: "sysctl -p /etc/sysctl.d/95-mysql-sysctl.conf"
+  ignore_errors: true
+
+- name: 创建 systemd 配置目录
+  file: 
+    name: /etc/systemd/system.conf.d 
+    state: directory 
+
+- name: 设置系统 ulimits
+  template: 
+    src: 30-mysql-ulimits.conf.j2
+    dest: /etc/systemd/system.conf.d/30-mysql-ulimits.conf
+
+- include_tasks: debian.yml
+  when: ansible_distribution in [ 'Ubuntu','Debian' ]
+
+- include_tasks: centos.yml
+  when: ansible_distribution in [ 'CentOS','OracleLinux','RedHat' ]
+
+- block:
+  - name: 获取 MASTER_LOG_FILE
+    shell: >
+      mysql -uroot -p'{{ auth.rootPassword }}' -h{{ MYSQL_MASTER_IP }} --connect-expired-password
+      -e "show master status\G" | grep File | tail -1 | sed -n 's/.*File: //p'
+    register: master_log_file
+  
+  - name: 获取 MASTER_LOG_POS
+    shell: >
+      mysql -uroot -p'{{ auth.rootPassword }}' -h{{ MYSQL_MASTER_IP }} --connect-expired-password
+      -e "show master status\G" | grep Position | tail -1 | sed -n 's/.*Position: //p'
+    register: master_log_pos
+  
+  - name: 执行 Master 设置
+    shell: >
+      mysql -uroot -p'{{ auth.rootPassword }}' --connect-expired-password
+      -NBe "CHANGE MASTER TO 
+      MASTER_HOST='{{ MYSQL_MASTER_IP }}',
+      MASTER_PORT={{ mysqld.port }},
+      MASTER_USER='{{ auth.replicationUser }}',
+      MASTER_PASSWORD='{{ auth.replicationPassword }}',
+      MASTER_LOG_FILE='{{ master_log_file.stdout }}',
+      MASTER_LOG_POS={{ master_log_pos.stdout }};
+      start slave;"
+  when: 
+  - "groups['mysql']|length > 1"
+  - not mysql_cnf_stat.stat.exists
+
+- block:
+  - name: 获取网卡名称
+    shell: "ip a|grep '{{ CURRENT_HOST_IP }}/'|awk '{print $NF}'"
+    register: lb_keepalived_interface
+
+  - name: 生成 keepalived 配置
+    template: 
+      src: keepalived.conf.j2
+      dest: /etc/keepalived/keepalived.conf
+    register: keepalived_cnf_result
+
+  - name: 启动 keepalived
+    service:
+      name: keepalived
+      state: restarted
+      enabled: yes
+    when: keepalived_cnf_result.changed
+  when: 
+  - "groups['mysql']|length > 1"

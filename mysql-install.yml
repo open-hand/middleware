@@ -1,0 +1,9 @@
+- hosts: 
+  - chrony
+  roles:
+  - chrony
+
+- hosts: 
+  - mysql
+  roles:
+  - mysql

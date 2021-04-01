@@ -1,0 +1,23 @@
+- hosts: 
+  - mysql
+  tasks:
+  - name: 停止 keepalived
+    service:
+      name: keepalived
+      state: stopped
+      enabled: yes
+    when: "groups['redis']|length > 1"
+
+  - name: 停止 mysql
+    service:
+      name: mysql
+      state: stopped
+      enabled: yes
+    when: ansible_distribution in [ 'Ubuntu','Debian' ]
+
+  - name: 停止 mysql
+    service:
+      name: mysqld
+      state: stopped
+      enabled: yes
+      when: ansible_distribution in [ 'CentOS','OracleLinux','RedHat' ]
