@@ -10,13 +10,13 @@ CURRENT_HOST_IP: "{% if hostvars[inventory_hostname]['ansible_host'] is defined 
 MYSQL_MASTER_IP: >-
   {%- if groups['mysql'].index(inventory_hostname)|int == 0 -%}
   {%- if hostvars[inventory_hostname]['ansible_host'] is defined -%}
-  {{ groups['mysql'][groups['mysql']|length|int - 1]['ansible_host'] }}
+  {{ hostvars[groups['mysql'][groups['mysql']|length|int - 1]]['ansible_host'] }}
   {%- else -%}
   {{ groups['mysql'][groups['mysql']|length|int - 1] }}
   {%- endif -%}
   {%- else -%}
   {%- if hostvars[inventory_hostname]['ansible_host'] is defined -%}
-  {{ groups['mysql'][groups['mysql'].index(inventory_hostname)|int - 1]['ansible_host'] }}
+  {{ hostvars[groups['mysql'][groups['mysql'].index(inventory_hostname)|int - 1]]['ansible_host'] }}
   {%- else -%}
   {{ groups['mysql'][groups['mysql'].index(inventory_hostname)|int - 1] }}
   {%- endif -%}
