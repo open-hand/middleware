@@ -59,12 +59,12 @@ LB_KEEPALIVED_PRIORITY: "120"
 LB_KEEPALIVED_STATE: "{% if inventory_hostname == groups['mysql'][0] %}MASTER{% else %}BACKUP{% endif %}"
 
 # Centos repo
-mysql_connectors_community_yum_repo: http://mirrors.ustc.edu.cn/mysql-repo/yum/mysql-connectors-community/el/7/$basearch/
-mysql_tools_community_yum_repo: http://mirrors.ustc.edu.cn/mysql-repo/yum/mysql-tools-community/el/7/$basearch/
-mysql_community_yum_repo: http://mirrors.ustc.edu.cn/mysql-repo/yum/mysql-5.7-community/el/7/$basearch/
+mysql_connectors_community_yum_repo: http://repo.mysql.com/yum/mysql-connectors-community/el/7/$basearch/
+mysql_tools_community_yum_repo: http://repo.mysql.com/yum/mysql-tools-community/el/7/$basearch/
+mysql_community_yum_repo: http://repo.mysql.com/yum/mysql-5.7-community/el/7/$basearch/
 
 # Ubuntu repo
-mysql_community_apt_repo: deb http://mirrors.ustc.edu.cn/mysql-repo/apt/{{ host_distribution | lower }} {{ host_distribution_release }} mysql-5.7 mysql-tools
+mysql_community_apt_repo: deb http://repo.mysql.com/apt/{{ host_distribution | lower }} {{ host_distribution_release }} mysql-5.7 mysql-tools
 
 auth:
   # root用户密码
