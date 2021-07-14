@@ -113,3 +113,19 @@
       enabled: yes
     when: redis_sentinel_result.changed
   when: "groups['redis']|length > 1"
+
+- shell: pgrep redis
+  register: pgrep_redis_out
+  name: get redis pid
+
+- shell: pgrep redis-sentinel
+  register: pgrep_redis_sentinel_out
+  name: get redis-sentinel pid
+
+- name: show redis pid
+  debug:
+    var: pgrep_redis_out.stdout
+  
+- name: show redis-sentinel pid
+  debug:
+    var: pgrep_redis_sentinel_out.stdout
