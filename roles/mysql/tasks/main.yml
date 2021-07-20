@@ -81,11 +81,3 @@
     when: keepalived_cnf_result.changed
   when: 
   - "groups['mysql']|length > 1"
-
-- shell: pgrep mysql
-  register: pgrep_mysql_out
-  name: get mysql pid
-
-- name: show mysql pid
-  debug:
-    var: pgrep_mysql_out.stdout

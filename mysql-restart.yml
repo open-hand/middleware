@@ -21,11 +21,3 @@
       state: restarted
       enabled: yes
       when: ansible_distribution in [ 'CentOS','OracleLinux','RedHat' ]
-
-  - shell: pgrep mysql
-    register: pgrep_mysql_out
-    name: get mysql pid
-  
-  - name: show mysql pid
-    debug:
-      var: pgrep_mysql_out.stdout
