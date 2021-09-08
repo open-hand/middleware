@@ -13,7 +13,7 @@
       enabled: yes
     when: "groups['redis']|length > 1"
 
-  - name: 删除 kubelet 相关文件或目录
+  - name: 删除 redis 相关文件或目录
     file: 
       name: "{{ item }}"
       state: absent
