@@ -1,0 +1,40 @@
+- hosts: 
+  - redis
+  tasks:
+  - name: 停止 redis
+    service:
+      name: redis
+      state: stopped
+      enabled: yes
+  - name: 停止 redis-sentinel
+    service:
+      name: redis-sentinel
+      state: stopped
+      enabled: yes
+    when: "groups['redis']|length > 1"
+
+  - name: 删除 kubelet 相关文件或目录
+    file: 
+      name: "{{ item }}"
+      state: absent
+    with_items:
+      - "/etc/redis/redis.conf"
+      - "/etc/redis/redis-sentinel.conf"
+      - "/usr/lib/systemd/system/redis.service"
+      - "/usr/lib/systemd/system/redis-sentinel.service"
+      - "/lib/systemd/system/redis.service"
+      - "/lib/systemd/system/redis-sentinel.service"
+      - "/usr/bin/redis-benchmark"
+      - "/usr/bin/redis-check-aof"
+      - "/usr/bin/redis-check-rdb"
+      - "/usr/bin/redis-cli"
+      - "/usr/bin/redis-sentinel"
+      - "/usr/bin/redis-server"
+      - "/usr/bin/redis-trib.rb"
+      - "/usr/bin/redis-shutdown"
+      - "/etc/redis"
+      - "/run/redis"
+      - "/var/log/redis"
+      - "{{ redis_base_config.dir }}"
+      - "{{ redis_base_config.logfile|dirname }}"
+      - "{{ redis_sentinel_config.logfile|dirname }}"
