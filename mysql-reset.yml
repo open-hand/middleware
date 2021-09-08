@@ -4,21 +4,21 @@
   - name: 停止 keepalived
     service:
       name: keepalived
-      state: stop
+      state: stopped
       enabled: yes
     when: "groups['redis']|length > 1"
 
   - name: 停止 mysql
     service:
       name: mysql
-      state: stop
+      state: stopped
       enabled: yes
     when: ansible_distribution in [ 'Ubuntu','Debian' ]
 
   - name: 停止 mysql
     service:
       name: mysqld
-      state: stop
+      state: stopped
       enabled: yes
       when: ansible_distribution in [ 'CentOS','OracleLinux','RedHat' ]
 
