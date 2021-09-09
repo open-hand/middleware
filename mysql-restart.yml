@@ -6,7 +6,7 @@
       name: keepalived
       state: restarted
       enabled: yes
-    when: "groups['redis']|length > 1"
+    when: "groups['mysql']|length > 1"
 
   - name: 重启 mysql
     service:

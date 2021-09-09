@@ -6,7 +6,7 @@
       name: keepalived
       state: stopped
       enabled: yes
-    when: "groups['redis']|length > 1"
+    when: "groups['mysql']|length > 1"
 
   - name: 停止 mysql
     service:
