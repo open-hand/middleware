@@ -6,7 +6,7 @@
       name: keepalived
       state: stopped
       enabled: yes
-    when: "groups['redis']|length > 1"
+    when: "groups['mysql']|length > 1"
 
   - name: 停止 mysql
     service:
@@ -20,7 +20,7 @@
       name: mysqld
       state: stopped
       enabled: yes
-      when: ansible_distribution in [ 'CentOS','OracleLinux','RedHat' ]
+    when: ansible_distribution in [ 'CentOS','OracleLinux','RedHat' ]
 
   - name: 删除 mysql 相关文件或目录
     file: 
